@@ -1,0 +1,8 @@
+- id: spring-datasource-password
+  description: Spring datasource password
+  pattern: "(?i)spring\\.datasource\\.password\\s*[:=]\\s*[^\\s]+"
+  skipAi: true
+- id: database-url
+  description: JDBC URL with credentials
+  pattern: "jdbc:[a-zA-Z]+://[^\\s]+"
+  skipAi: true
