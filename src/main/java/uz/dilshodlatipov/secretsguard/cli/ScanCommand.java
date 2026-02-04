@@ -1,13 +1,14 @@
 package uz.dilshodlatipov.secretsguard.cli;
 
-import org.springframework.shell.command.annotation.Command;
-import org.springframework.shell.command.annotation.Option;
+import org.springframework.shell.core.command.annotation.Command;
+import org.springframework.shell.core.command.annotation.Option;
 import uz.dilshodlatipov.secretsguard.model.SecretFinding;
 import uz.dilshodlatipov.secretsguard.service.ScanService;
 
 import java.nio.file.Path;
 import java.util.List;
 
+//TODO adapt old shell interface to newer ones.
 @Command(command = "scan", description = "Scan a repository for secrets")
 public class ScanCommand {
 

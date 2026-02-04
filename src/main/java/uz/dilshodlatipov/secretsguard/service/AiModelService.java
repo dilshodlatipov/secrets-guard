@@ -1,10 +1,8 @@
 package uz.dilshodlatipov.secretsguard.service;
 
+import ai.djl.huggingface.tokenizers.Encoding;
 import ai.djl.huggingface.tokenizers.HuggingFaceTokenizer;
-import com.microsoft.onnxruntime.OnnxTensor;
-import com.microsoft.onnxruntime.OrtEnvironment;
-import com.microsoft.onnxruntime.OrtSession;
-import com.microsoft.onnxruntime.TensorInfo;
+import ai.onnxruntime.*;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Component;
@@ -60,7 +58,7 @@ public class AiModelService {
             return 1.0;
         }
         try {
-            HuggingFaceTokenizer.Encoding encoding = tokenizer.encode(text);
+            Encoding encoding = tokenizer.encode(text);
             long[] inputIds = encoding.getIds();
             long[] attentionMask = encoding.getAttentionMask();
             long[][] inputIdsBatch = new long[][]{inputIds};
@@ -85,11 +83,12 @@ public class AiModelService {
         }
     }
 
-    public synchronized Map<String, TensorInfo> inputInfo() {
+    public synchronized Map<String, TensorInfo> inputInfo() throws OrtException {
         ensureLoaded();
         if (!isLoaded()) {
             return Map.of();
         }
+        //TODO Required type: Map<String,TensorInfo>. Provided: Map<String,NodeInfo>
         return session.getInputInfo();
     }
 
