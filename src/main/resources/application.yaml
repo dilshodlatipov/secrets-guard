@@ -1,1 +1,23 @@
-spring.application.name=secrets-guard
+spring:
+  application:
+    name: secrets-guard
+
+secrets-guard:
+  regexes-path: classpath:regexes.yaml
+  ai:
+    enabled: true
+    model-path: classpath:model/model.onnx
+    tokenizer-path: classpath:model
+    score-threshold: 0.5
+    skip-regex-ids:
+      - spring-datasource-password
+      - database-url
+  scan:
+    max-file-size-bytes: 1048576
+    ignore:
+      - .git
+      - target
+      - build
+      - node_modules
+  hooks:
+    pre-commit-command: sg-cli scan --staged
