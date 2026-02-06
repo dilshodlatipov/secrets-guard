@@ -1,43 +1,50 @@
 package uz.dilshodlatipov.secretsguard.cli;
 
-import org.springframework.shell.core.command.annotation.Command;
-import org.springframework.shell.core.command.annotation.Option;
-import org.springframework.stereotype.Component;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
+import uz.dilshodlatipov.secretsguard.AppContext;
 import uz.dilshodlatipov.secretsguard.model.SecretFinding;
-import uz.dilshodlatipov.secretsguard.service.GitHookService;
-import uz.dilshodlatipov.secretsguard.service.ScanService;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.concurrent.Callable;
 
-@Component
-public class InitCommand {
+@Command(name = "init", description = "Install pre-commit hook and run initial scan")
+public class InitCommand implements Callable<Integer> {
 
-    private final GitHookService gitHookService;
-    private final ScanService scanService;
+    private final AppContext context;
 
-    public InitCommand(GitHookService gitHookService, ScanService scanService) {
-        this.gitHookService = gitHookService;
-        this.scanService = scanService;
+    @Option(names = "--path", defaultValue = ".")
+    private Path path;
+
+    @Option(names = "--skip-scan", defaultValue = "false")
+    private boolean skipScan;
+
+    public InitCommand(AppContext context) {
+        this.context = context;
     }
 
-    @Command(name = "init", description = "Install the pre-commit hook and scan the repo")
-    public String init(@Option(longName = "path", defaultValue = ".") Path path,
-                       @Option(longName = "skip-scan", defaultValue = "false") boolean skipScan) {
+    @Override
+    public Integer call() {
         Path repoRoot = path.toAbsolutePath().normalize();
         if (!Files.exists(repoRoot.resolve(".git"))) {
-            return "No .git directory found at " + repoRoot + ". Run from a git repository.";
+            System.err.println("No .git directory found at " + repoRoot + ". Run from a git repository.");
+            return 1;
         }
-        Path hook = gitHookService.installPreCommitHook(repoRoot);
-        StringBuilder output = new StringBuilder("Installed pre-commit hook at: ").append(hook);
+
+        Path hook = context.gitHookService().installPreCommitHook(repoRoot);
+        System.out.println("Installed pre-commit hook at: " + hook);
+
         if (!skipScan) {
-            List<SecretFinding> findings = scanService.scan(repoRoot, false);
-            output.append("\nInitial scan complete. Findings: ").append(findings.size());
+            List<SecretFinding> findings = context.scanService().scan(repoRoot, false);
+            System.out.println("Initial scan complete. Findings: " + findings.size());
             if (!findings.isEmpty()) {
-                output.append("\n\n").append(ScanCommand.formatFindings(findings));
+                System.out.println();
+                System.out.println(ScanCommand.formatFindings(findings));
+                return 2;
             }
         }
-        return output.toString();
+        return 0;
     }
 }

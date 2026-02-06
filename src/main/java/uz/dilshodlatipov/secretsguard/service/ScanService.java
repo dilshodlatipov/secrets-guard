@@ -2,7 +2,6 @@ package uz.dilshodlatipov.secretsguard.service;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Service;
 import uz.dilshodlatipov.secretsguard.config.SecretsGuardProperties;
 import uz.dilshodlatipov.secretsguard.model.RegexDefinition;
 import uz.dilshodlatipov.secretsguard.model.SecretFinding;
@@ -18,7 +17,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.regex.Matcher;
 
-@Service
 public class ScanService {
 
     private static final Logger log = LoggerFactory.getLogger(ScanService.class);
@@ -77,8 +75,10 @@ public class ScanService {
                     }
                 }
             }
-        } catch (IOException | InterruptedException ex) {
+        } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
+            log.warn("Interrupted while reading staged files", ex);
+        } catch (IOException ex) {
             log.warn("Failed to read staged files", ex);
         }
         return files;
@@ -114,8 +114,7 @@ public class ScanService {
                     Matcher matcher = compiled.pattern().matcher(line);
                     while (matcher.find()) {
                         String match = matcher.group();
-                        boolean aiConfirmed = aiScanner.isSecret(match, compiled.definition());
-                        if (aiConfirmed) {
+                        if (aiScanner.isSecret(match, compiled.definition())) {
                             findings.add(new SecretFinding(
                                     file,
                                     lineNumber,

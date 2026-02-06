@@ -1,37 +1,41 @@
 package uz.dilshodlatipov.secretsguard.cli;
 
-import org.springframework.shell.core.command.annotation.Command;
-import org.springframework.shell.core.command.annotation.Option;
-import org.springframework.stereotype.Component;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
+import uz.dilshodlatipov.secretsguard.AppContext;
 import uz.dilshodlatipov.secretsguard.model.SecretFinding;
-import uz.dilshodlatipov.secretsguard.service.ScanService;
 
 import java.nio.file.Path;
 import java.util.List;
+import java.util.concurrent.Callable;
 
-@Component
-public class ScanCommand {
+@Command(name = "scan", description = "Scan a repository for secrets")
+public class ScanCommand implements Callable<Integer> {
 
-    private final ScanService scanService;
+    private final AppContext context;
 
-    public ScanCommand(ScanService scanService) {
-        this.scanService = scanService;
+    @Option(names = "--path", defaultValue = ".")
+    private Path path;
+
+    @Option(names = "--staged", defaultValue = "false")
+    private boolean staged;
+
+    public ScanCommand(AppContext context) {
+        this.context = context;
     }
 
-    @Command(name = "scan", description = "Scan a repository for secrets")
-    public String scan(@Option(longName = "path", defaultValue = ".") Path path,
-                       @Option(longName = "staged", defaultValue = "false") boolean staged) {
-        List<SecretFinding> findings = scanService.scan(path.toAbsolutePath().normalize(), staged);
+    @Override
+    public Integer call() {
+        List<SecretFinding> findings = context.scanService().scan(path.toAbsolutePath().normalize(), staged);
         if (findings.isEmpty()) {
-            return "No secrets detected.";
+            System.out.println("No secrets detected.");
+            return 0;
         }
-        String message = "Detected " + findings.size() + " potential secret(s).\n\n" + formatFindings(findings);
-        System.err.println(message);
-        System.exit(2);
-        return message;
+        System.err.println("Detected " + findings.size() + " potential secret(s).\n\n" + formatFindings(findings));
+        return 2;
     }
 
-    static String formatFindings(List<SecretFinding> findings) {
+    public static String formatFindings(List<SecretFinding> findings) {
         StringBuilder builder = new StringBuilder();
         for (SecretFinding finding : findings) {
             builder.append("- ")

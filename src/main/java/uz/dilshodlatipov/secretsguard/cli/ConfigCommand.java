@@ -1,38 +1,33 @@
 package uz.dilshodlatipov.secretsguard.cli;
 
-import org.springframework.shell.core.command.annotation.Command;
-import org.springframework.stereotype.Component;
+import picocli.CommandLine.Command;
+import uz.dilshodlatipov.secretsguard.AppContext;
 import uz.dilshodlatipov.secretsguard.config.SecretsGuardProperties;
-import uz.dilshodlatipov.secretsguard.service.AiModelService;
 
+import java.util.concurrent.Callable;
 import java.util.stream.Collectors;
 
-@Component
-public class ConfigCommand {
+@Command(name = "config", description = "Show active configuration")
+public class ConfigCommand implements Callable<Integer> {
 
-    private final SecretsGuardProperties properties;
-    private final AiModelService aiModelService;
+    private final AppContext context;
 
-    public ConfigCommand(SecretsGuardProperties properties, AiModelService aiModelService) {
-        this.properties = properties;
-        this.aiModelService = aiModelService;
+    public ConfigCommand(AppContext context) {
+        this.context = context;
     }
 
-    @Command(name = "config", description = "Show the active configuration")
-    public String show() {
-        StringBuilder builder = new StringBuilder();
-        builder.append("Regexes path: ").append(properties.getRegexesPath()).append("\n")
-                .append("AI enabled: ").append(properties.getAi().isEnabled()).append("\n")
-                .append("AI model: ").append(properties.getAi().getModelPath()).append("\n")
-                .append("AI tokenizer: ").append(properties.getAi().getTokenizerPath()).append("\n")
-                .append("AI threshold: ").append(properties.getAi().getScoreThreshold()).append("\n")
-                .append("AI skip regex IDs: ")
-                .append(String.join(", ", properties.getAi().getSkipRegexIds()))
-                .append("\n")
-                .append("Scan ignore: ")
-                .append(properties.getScan().getIgnore().stream().collect(Collectors.joining(", ")))
-                .append("\n")
-                .append("Model loaded: ").append(aiModelService.isLoaded());
-        return builder.toString();
+    @Override
+    public Integer call() {
+        SecretsGuardProperties properties = context.properties();
+        String value = "Regexes path: " + properties.getRegexesPath() + "\n" +
+                "AI enabled: " + properties.getAi().isEnabled() + "\n" +
+                "AI model: " + properties.getAi().getModelPath() + "\n" +
+                "AI tokenizer: " + properties.getAi().getTokenizerPath() + "\n" +
+                "AI threshold: " + properties.getAi().getScoreThreshold() + "\n" +
+                "AI skip regex IDs: " + String.join(", ", properties.getAi().getSkipRegexIds()) + "\n" +
+                "Scan ignore: " + properties.getScan().getIgnore().stream().collect(Collectors.joining(", ")) + "\n" +
+                "Model loaded: " + context.aiModelService().isLoaded();
+        System.out.println(value);
+        return 0;
     }
 }

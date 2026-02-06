@@ -6,30 +6,25 @@ import ai.onnxruntime.NodeInfo;
 import ai.onnxruntime.OnnxTensor;
 import ai.onnxruntime.OrtEnvironment;
 import ai.onnxruntime.OrtSession;
-import org.springframework.core.io.Resource;
-import org.springframework.core.io.ResourceLoader;
-import org.springframework.stereotype.Component;
 import uz.dilshodlatipov.secretsguard.config.SecretsGuardProperties;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.HashMap;
 import java.util.Map;
 
-@Component
 public class AiModelService {
 
     private final SecretsGuardProperties properties;
-    private final ResourceLoader resourceLoader;
     private OrtEnvironment environment;
     private OrtSession session;
     private HuggingFaceTokenizer tokenizer;
 
-    public AiModelService(SecretsGuardProperties properties, ResourceLoader resourceLoader) {
+    public AiModelService(SecretsGuardProperties properties) {
         this.properties = properties;
-        this.resourceLoader = resourceLoader;
     }
 
     public synchronized boolean isLoaded() {
@@ -42,14 +37,11 @@ public class AiModelService {
         }
         try {
             environment = OrtEnvironment.getEnvironment();
-            Resource modelResource = resourceLoader.getResource(properties.getAi().getModelPath());
-            if (!modelResource.exists()) {
-                throw new IllegalStateException("Model not found at " + properties.getAi().getModelPath());
-            }
-            Path modelPath = writeTempFile(modelResource, "model", ".onnx");
+            Path modelPath = resolveToFile(properties.getAi().getModelPath(), "model", ".onnx");
             session = environment.createSession(modelPath.toString(), new OrtSession.SessionOptions());
-            Resource tokenizerResource = resourceLoader.getResource(properties.getAi().getTokenizerPath());
-            tokenizer = HuggingFaceTokenizer.newInstance(tokenizerResource.getFile().toPath());
+
+            Path tokenizerPath = resolveDirectory(properties.getAi().getTokenizerPath());
+            tokenizer = HuggingFaceTokenizer.newInstance(tokenizerPath);
         } catch (Exception ex) {
             throw new IllegalStateException("Failed to initialize AI model", ex);
         }
@@ -62,10 +54,8 @@ public class AiModelService {
         }
         try {
             Encoding encoding = tokenizer.encode(text);
-            long[] inputIds = encoding.getIds();
-            long[] attentionMask = encoding.getAttentionMask();
-            long[][] inputIdsBatch = new long[][]{inputIds};
-            long[][] attentionMaskBatch = new long[][]{attentionMask};
+            long[][] inputIdsBatch = new long[][]{encoding.getIds()};
+            long[][] attentionMaskBatch = new long[][]{encoding.getAttentionMask()};
 
             Map<String, OnnxTensor> inputs = new HashMap<>();
             inputs.put("input_ids", OnnxTensor.createTensor(environment, inputIdsBatch));
@@ -97,12 +87,46 @@ public class AiModelService {
         }
     }
 
-    private Path writeTempFile(Resource resource, String prefix, String suffix) throws IOException {
+    private Path resolveDirectory(String location) throws IOException {
+        if (!location.startsWith("classpath:")) {
+            return Path.of(location);
+        }
+        String classpathDir = location.substring("classpath:".length());
+        Path tempDir = Files.createTempDirectory("sg-tokenizer-");
+        copyClasspathFile(classpathDir + "/tokenizer_config.json", tempDir.resolve("tokenizer_config.json"));
+        copyClasspathFile(classpathDir + "/vocab.json", tempDir.resolve("vocab.json"));
+        copyClasspathFile(classpathDir + "/merges.txt", tempDir.resolve("merges.txt"));
+        copyClasspathFile(classpathDir + "/special_tokens_map.json", tempDir.resolve("special_tokens_map.json"));
+        copyClasspathFile(classpathDir + "/config.json", tempDir.resolve("config.json"));
+        tempDir.toFile().deleteOnExit();
+        return tempDir;
+    }
+
+    private Path resolveToFile(String location, String prefix, String suffix) throws IOException {
+        if (!location.startsWith("classpath:")) {
+            return Path.of(location);
+        }
+        String classpathLocation = location.substring("classpath:".length());
         Path tempFile = Files.createTempFile(prefix, suffix);
-        try (InputStream inputStream = resource.getInputStream()) {
-            Files.copy(inputStream, tempFile, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        try (InputStream inputStream = getClasspathStream(classpathLocation)) {
+            Files.copy(inputStream, tempFile, StandardCopyOption.REPLACE_EXISTING);
         }
         tempFile.toFile().deleteOnExit();
         return tempFile;
+    }
+
+    private void copyClasspathFile(String classpathLocation, Path target) throws IOException {
+        try (InputStream in = getClasspathStream(classpathLocation)) {
+            Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
+        }
+        target.toFile().deleteOnExit();
+    }
+
+    private InputStream getClasspathStream(String classpathLocation) {
+        InputStream inputStream = AiModelService.class.getClassLoader().getResourceAsStream(classpathLocation);
+        if (inputStream == null) {
+            throw new IllegalStateException("Classpath resource not found: " + classpathLocation);
+        }
+        return inputStream;
     }
 }

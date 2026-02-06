@@ -2,11 +2,9 @@ package uz.dilshodlatipov.secretsguard.service;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Component;
 import uz.dilshodlatipov.secretsguard.config.SecretsGuardProperties;
 import uz.dilshodlatipov.secretsguard.model.RegexDefinition;
 
-@Component
 public class AiScanner {
 
     private static final Logger log = LoggerFactory.getLogger(AiScanner.class);

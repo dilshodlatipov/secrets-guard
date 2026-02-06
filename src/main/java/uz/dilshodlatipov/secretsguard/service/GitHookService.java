@@ -1,6 +1,5 @@
 package uz.dilshodlatipov.secretsguard.service;
 
-import org.springframework.stereotype.Component;
 import uz.dilshodlatipov.secretsguard.config.SecretsGuardProperties;
 
 import java.io.IOException;
@@ -10,7 +9,6 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.util.EnumSet;
 import java.util.Set;
 
-@Component
 public class GitHookService {
 
     private final SecretsGuardProperties properties;
