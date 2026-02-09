@@ -105,12 +105,55 @@ public class ScanService {
 
     private List<SecretFinding> scanFile(Path file, RegexScanner regexScanner) {
         List<SecretFinding> findings = new ArrayList<>();
-        try (BufferedReader reader = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
+        try {
+            String content = Files.readString(file, StandardCharsets.UTF_8);
+            boolean hasMultiline = regexScanner.getCompiledRegexes().stream()
+                    .anyMatch(compiled -> compiled.definition().multiline());
+            if (hasMultiline) {
+                findings.addAll(scanContent(file, content, regexScanner));
+            }
+            findings.addAll(scanLines(file, content, regexScanner));
+        } catch (IOException ex) {
+            log.warn("Failed to read {}", file, ex);
+        }
+        return findings;
+    }
+
+    private List<SecretFinding> scanContent(Path file, String content, RegexScanner regexScanner) {
+        List<SecretFinding> findings = new ArrayList<>();
+        for (RegexScanner.CompiledRegex compiled : regexScanner.getCompiledRegexes()) {
+            if (!compiled.definition().multiline()) {
+                continue;
+            }
+            Matcher matcher = compiled.pattern().matcher(content);
+            while (matcher.find()) {
+                String match = matcher.group();
+                if (aiScanner.isSecret(match, compiled.definition())) {
+                    findings.add(new SecretFinding(
+                            file,
+                            lineNumberForOffset(content, matcher.start()),
+                            match,
+                            compiled.definition().id(),
+                            compiled.definition().description(),
+                            true
+                    ));
+                }
+            }
+        }
+        return findings;
+    }
+
+    private List<SecretFinding> scanLines(Path file, String content, RegexScanner regexScanner) throws IOException {
+        List<SecretFinding> findings = new ArrayList<>();
+        try (BufferedReader reader = new BufferedReader(new java.io.StringReader(content))) {
             String line;
             int lineNumber = 0;
             while ((line = reader.readLine()) != null) {
                 lineNumber++;
                 for (RegexScanner.CompiledRegex compiled : regexScanner.getCompiledRegexes()) {
+                    if (compiled.definition().multiline()) {
+                        continue;
+                    }
                     Matcher matcher = compiled.pattern().matcher(line);
                     while (matcher.find()) {
                         String match = matcher.group();
@@ -127,9 +170,18 @@ public class ScanService {
                     }
                 }
             }
-        } catch (IOException ex) {
-            log.warn("Failed to read {}", file, ex);
         }
         return findings;
+    }
+
+    private int lineNumberForOffset(String content, int offset) {
+        int line = 1;
+        int limit = Math.min(offset, content.length());
+        for (int i = 0; i < limit; i++) {
+            if (content.charAt(i) == '\n') {
+                line++;
+            }
+        }
+        return line;
     }
 }

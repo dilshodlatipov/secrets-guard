@@ -12,8 +12,15 @@ public class RegexScanner {
 
     public RegexScanner(List<RegexDefinition> definitions) {
         this.compiledRegexes = definitions.stream()
-                .map(definition -> new CompiledRegex(definition, Pattern.compile(definition.pattern())))
+                .map(definition -> new CompiledRegex(definition, compile(definition)))
                 .collect(Collectors.toList());
+    }
+
+    private Pattern compile(RegexDefinition definition) {
+        if (definition.multiline()) {
+            return Pattern.compile(definition.pattern(), Pattern.MULTILINE | Pattern.DOTALL);
+        }
+        return Pattern.compile(definition.pattern());
     }
 
     public List<CompiledRegex> getCompiledRegexes() {

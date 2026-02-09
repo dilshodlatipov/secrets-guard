@@ -2,7 +2,29 @@
   description: Spring datasource password
   pattern: "(?i)spring\\.datasource\\.password\\s*[:=]\\s*[^\\s]+"
   skipAi: true
+  multiline: false
 - id: database-url
   description: JDBC URL with credentials
   pattern: "jdbc:[a-zA-Z]+://[^\\s]+"
   skipAi: true
+  multiline: false
+- id: pem-private-key
+  description: PEM private key block
+  pattern: "-----BEGIN(?:[A-Z0-9 ]+)?PRIVATE KEY-----[\\s\\S]*?-----END(?:[A-Z0-9 ]+)?PRIVATE KEY-----"
+  skipAi: true
+  multiline: true
+- id: pem-certificate
+  description: PEM certificate block
+  pattern: "-----BEGIN CERTIFICATE-----[\\s\\S]*?-----END CERTIFICATE-----"
+  skipAi: true
+  multiline: true
+- id: pem-private-key-inline
+  description: Inline PEM key material
+  pattern: "(?i)-----BEGIN(?:[A-Z0-9 ]+)?PRIVATE KEY-----"
+  skipAi: true
+  multiline: false
+- id: pem-certificate-inline
+  description: Inline PEM certificate material
+  pattern: "(?i)-----BEGIN CERTIFICATE-----"
+  skipAi: true
+  multiline: false

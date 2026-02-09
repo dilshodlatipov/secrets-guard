@@ -33,7 +33,18 @@ public class InitCommand implements Callable<Integer> {
             return 1;
         }
 
-        Path hook = context.gitHookService().installPreCommitHook(repoRoot);
+        if (context.gitHookService().isAlreadyInitialized(repoRoot)) {
+            System.err.println("secrets-guard is already initialized for this repository.");
+            return 1;
+        }
+
+        Path hook;
+        try {
+            hook = context.gitHookService().installPreCommitHook(repoRoot);
+        } catch (IllegalStateException ex) {
+            System.err.println(ex.getMessage());
+            return 1;
+        }
         System.out.println("Installed pre-commit hook at: " + hook);
 
         if (!skipScan) {

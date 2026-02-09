@@ -4,6 +4,7 @@ public record RegexDefinition(
         String id,
         String description,
         String pattern,
-        boolean skipAi
+        boolean skipAi,
+        boolean multiline
 ) {
 }

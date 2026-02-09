@@ -3,7 +3,7 @@
 `sg-cli` is a Picocli-based CLI application for scanning repositories for leaked secrets before commit.
 
 Detection strategy:
-1. Regex scan over files.
+1. Regex scan over files (including multiline PEM blocks).
 2. Optional ONNX AI filter to reduce false positives.
 
 ## Requirements
@@ -51,7 +51,12 @@ Exit codes:
 java -jar target/secrets-guard-0.1.0.jar init --path .
 ```
 
-Installs `.git/hooks/pre-commit` to run:
+Behavior:
+- Installs `.git/hooks/pre-commit` only once per repository.
+- Performs a full repository scan at initialization (current working tree), unless `--skip-scan` is provided.
+- Does **not** scan historical commits; use `scan --path` for current files or other tooling to scan git history.
+
+The hook runs:
 
 ```sh
 sg-cli scan --staged
@@ -109,4 +114,4 @@ Then use:
 ## Notes
 
 - ONNX model files are expected under `src/main/resources/model/`.
-- Regex rules are loaded from `src/main/resources/regexes.yaml` by default.
+- Regex rules are loaded from `src/main/resources/regexes.yaml` by default, including PEM certificate/private key blocks.
