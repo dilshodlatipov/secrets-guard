@@ -3,6 +3,7 @@ package uz.dilshodlatipov.secretsguard.cli;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import uz.dilshodlatipov.secretsguard.AppContext;
+import uz.dilshodlatipov.secretsguard.model.HistoryFinding;
 import uz.dilshodlatipov.secretsguard.model.SecretFinding;
 
 import java.nio.file.Files;
@@ -20,6 +21,9 @@ public class InitCommand implements Callable<Integer> {
 
     @Option(names = "--skip-scan", defaultValue = "false")
     private boolean skipScan;
+
+    @Option(names = "--skip-history", defaultValue = "false")
+    private boolean skipHistory;
 
     public InitCommand(AppContext context) {
         this.context = context;
@@ -53,9 +57,25 @@ public class InitCommand implements Callable<Integer> {
             if (!findings.isEmpty()) {
                 System.out.println();
                 System.out.println(ScanCommand.formatFindings(findings));
+            }
+        }
+
+        if (!skipHistory) {
+            List<HistoryFinding> historyFindings = context.gitHistoryService().scanHistory(repoRoot);
+            System.out.println("History scan complete. Findings: " + historyFindings.size());
+            if (!historyFindings.isEmpty()) {
+                System.out.println();
+                for (HistoryFinding finding : historyFindings) {
+                    SecretFinding detail = finding.finding();
+                    System.out.println("- commit " + finding.commitId() + " " + detail.file() + ":" + detail.line()
+                            + " [" + detail.regexId() + "] " + detail.description());
+                }
+                System.out.println();
+                System.out.println("Consider rewriting history to remove secrets (e.g., git filter-repo).");
                 return 2;
             }
         }
+
         return 0;
     }
 }

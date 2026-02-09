@@ -54,7 +54,7 @@ java -jar target/secrets-guard-0.1.0.jar init --path .
 Behavior:
 - Installs `.git/hooks/pre-commit` only once per repository.
 - Performs a full repository scan at initialization (current working tree), unless `--skip-scan` is provided.
-- Does **not** scan historical commits; use `scan --path` for current files or other tooling to scan git history.
+- Scans git history by default to identify secrets in past commits. Use `--skip-history` to disable.
 
 The hook runs:
 

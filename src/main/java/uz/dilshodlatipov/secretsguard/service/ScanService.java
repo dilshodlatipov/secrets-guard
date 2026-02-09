@@ -42,6 +42,12 @@ public class ScanService {
         return findings;
     }
 
+    public List<SecretFinding> scanContent(Path file, String content) {
+        List<RegexDefinition> definitions = regexLoader.load(properties.getRegexesPath());
+        RegexScanner regexScanner = new RegexScanner(definitions);
+        return scanContent(file, content, regexScanner);
+    }
+
     private List<Path> allFiles(Path root) {
         List<Path> files = new ArrayList<>();
         try (var stream = Files.walk(root)) {
@@ -107,12 +113,7 @@ public class ScanService {
         List<SecretFinding> findings = new ArrayList<>();
         try {
             String content = Files.readString(file, StandardCharsets.UTF_8);
-            boolean hasMultiline = regexScanner.getCompiledRegexes().stream()
-                    .anyMatch(compiled -> compiled.definition().multiline());
-            if (hasMultiline) {
-                findings.addAll(scanContent(file, content, regexScanner));
-            }
-            findings.addAll(scanLines(file, content, regexScanner));
+            findings.addAll(scanContent(file, content, regexScanner));
         } catch (IOException ex) {
             log.warn("Failed to read {}", file, ex);
         }
@@ -120,6 +121,17 @@ public class ScanService {
     }
 
     private List<SecretFinding> scanContent(Path file, String content, RegexScanner regexScanner) {
+        List<SecretFinding> findings = new ArrayList<>();
+        boolean hasMultiline = regexScanner.getCompiledRegexes().stream()
+                .anyMatch(compiled -> compiled.definition().multiline());
+        if (hasMultiline) {
+            findings.addAll(scanContentMultiline(file, content, regexScanner));
+        }
+        findings.addAll(scanLines(file, content, regexScanner));
+        return findings;
+    }
+
+    private List<SecretFinding> scanContentMultiline(Path file, String content, RegexScanner regexScanner) {
         List<SecretFinding> findings = new ArrayList<>();
         for (RegexScanner.CompiledRegex compiled : regexScanner.getCompiledRegexes()) {
             if (!compiled.definition().multiline()) {
@@ -143,7 +155,7 @@ public class ScanService {
         return findings;
     }
 
-    private List<SecretFinding> scanLines(Path file, String content, RegexScanner regexScanner) throws IOException {
+    private List<SecretFinding> scanLines(Path file, String content, RegexScanner regexScanner) {
         List<SecretFinding> findings = new ArrayList<>();
         try (BufferedReader reader = new BufferedReader(new java.io.StringReader(content))) {
             String line;
@@ -170,6 +182,8 @@ public class ScanService {
                     }
                 }
             }
+        } catch (IOException ex) {
+            log.warn("Failed to read content for {}", file, ex);
         }
         return findings;
     }
